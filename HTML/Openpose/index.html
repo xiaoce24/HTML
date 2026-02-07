@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>OpenPose Model Editor Pro</title>
+    <!-- 引入 Fabric.js 作为底层引擎 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <style>
+        body { background: #121212; color: white; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; }
+        .wrapper { display: flex; gap: 20px; padding: 20px; margin-top: 10px; }
+        .canvas-container { background: #000; border: 2px solid #333; border-radius: 4px; overflow: hidden; }
+        .panel { width: 260px; background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        h3 { margin-top: 0; color: #007bff; font-size: 18px; }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        button { 
+            padding: 10px; border: none; border-radius: 4px; background: #333; color: white; cursor: pointer; 
+            transition: 0.2s; font-size: 14px; text-align: left;
+        }
+        button:hover { background: #444; }
+        button.primary { background: #007bff; text-align: center; font-weight: bold; }
+        button.primary:hover { background: #0069d9; }
+        .pose-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .pose-list button { text-align: center; font-size: 12px; padding: 8px; }
+        .hint { font-size: 12px; color: #777; line-height: 1.6; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="wrapper">
+        <!-- 画布区 -->
+        <div class="canvas-area">
+            <canvas id="openposeCanvas"></canvas>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="panel">
+            <h3>控制面板</h3>
+            <div class="btn-group">
+                <button class="primary" onclick="downloadImage()">保存骨骼图 (PNG)</button>
+                <button onclick="resetCanvas()">重置画布</button>
+            </div>
+
+            <h3>模型姿态预设</h3>
+            <div class="pose-list">
+                <button onclick="loadModel('standard')">标准站立</button>
+                <button onclick="loadModel('running')">跑步姿态</button>
+                <button onclick="loadModel('sitting')">侧坐姿态</button>
+                <button onclick="loadModel('greeting')">挥手致意</button>
+            </div>
+
+            <div class="hint">
+                <b>操作技巧：</b><br>
+                • 拖动彩色球体调整关节<br>
+                • 肢体会自动根据关节距离拉伸<br>
+                • 导出图为 512x768 纯黑底
+            </div>
+        </div>
+    </div>
+
+<script>
+// --- OpenPose 标准配置 ---
+const COLORS = [
+    [255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], 
+    [85, 255, 0], [0, 255, 0], [0, 255, 85], [0, 255, 170], [0, 255, 255], 
+    [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255], [170, 0, 255], 
+    [255, 0, 255], [255, 0, 170], [255, 0, 85]
+];
+
+const LIMBS = [
+    [1, 2], [1, 5], [2, 3], [3, 4], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10],
+    [1, 11], [11, 12], [12, 13], [1, 0], [0, 14], [14, 16], [0, 15], [15, 17]
+];
+
+// --- 预设姿态数据模型 ---
+const POSE_MODELS = {
+    standard: [[256,140], [256,210], [216,210], [196,290], [176,370], [296,210], [316,290], [336,370], [236,370], [236,490], [236,610], [276,370], [276,490], [276,610], [244,125], [268,125], [226,130], [286,130]],
+    running: [[340,150], [300,220], [260,210], [210,240], [160,220], [330,230], [370,300], [420,320], [260,380], [180,420], [200,550], [320,380], [380,480], [330,580], [330,135], [350,135], [315,140], [365,145]],
+    sitting: [[200,300], [220,370], [180,380], [150,450], [180,500], [260,370], [290,440], [260,500], [240,530], [350,530], [450,530], [280,530], [320,620], [420,620], [190,285], [210,285], [180,290], [220,290]],
+    greeting: [[256,140], [256,210], [216,210], [180,180], [140,100], [296,210], [316,290], [336,370], [236,370], [236,490], [236,610], [276,370], [276,490], [276,610], [244,125], [268,125], [226,130], [286,130]]
+};
+
+let fCanvas;
+let jointObjs = [];
+let limbObjs = [];
+
+// 初始化编辑器
+function initEditor() {
+    fCanvas = new fabric.Canvas('openposeCanvas', {
+        width: 512,
+        height: 768,
+        backgroundColor: 'black',
+        selection: false
+    });
+
+    loadModel('standard');
+
+    // 监听对象移动，实时重绘肢体
+    fCanvas.on('object:moving', renderLimbs);
+}
+
+// 渲染肢体模型（连接关节）
+function renderLimbs() {
+    limbObjs.forEach(l => fCanvas.remove(l));
+    limbObjs = [];
+
+    LIMBS.forEach((pair, idx) => {
+        const p1 = jointObjs[pair[0]];
+        const p2 = jointObjs[pair[1]];
+        const color = COLORS[pair[1]];
+
+        // 计算肢体多边形 (中间粗，两头细)
+        const bone = createBoneShape(p1.left, p1.top, p2.left, p2.top, color);
+        fCanvas.add(bone);
+        limbObjs.push(bone);
+        bone.sendToBack(); // 肢体置于底层
+    });
+}
+
+// 核心算法：生成“骨骼感”的多边形
+function createBoneShape(x1, y1, x2, y2, color) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx);
+    const width = 12; // 最宽处
+
+    // 构造菱形/六边形骨骼感形状
+    const points = [
+        { x: 0, y: 0 }, // 起点
+        { x: length * 0.5, y: -width / 2 }, // 中间上侧
+        { x: length, y: 0 }, // 终点
+        { x: length * 0.5, y: width / 2 }  // 中间下侧
+    ];
+
+    const poly = new fabric.Polygon(points, {
+        fill: `rgb(${color[0]},${color[1]},${color[2]})`,
+        left: x1,
+        top: y1,
+        angle: angle * 180 / Math.PI,
+        selectable: false,
+        evented: false,
+        originX: 'left',
+        originY: 'center'
+    });
+    return poly;
+}
+
+// 加载模型姿态数据
+function loadModel(key) {
+    fCanvas.clear();
+    fCanvas.backgroundColor = 'black';
+    jointObjs = [];
+    limbObjs = [];
+
+    const data = POSE_MODELS[key];
+
+    // 创建关节对象
+    data.forEach((pos, i) => {
+        const c = COLORS[i];
+        const joint = new fabric.Circle({
+            left: pos[0],
+            top: pos[1],
+            radius: 5,
+            fill: `rgb(${c[0]},${c[1]},${c[2]})`,
+            originX: 'center',
+            originY: 'center',
+            hasControls: false,
+            hasBorders: false
+        });
+        fCanvas.add(joint);
+        jointObjs.push(joint);
+    });
+
+    renderLimbs();
+}
+
+function downloadImage() {
+    const dataURL = fCanvas.toDataURL({
+        format: 'png',
+        quality: 1
+    });
+    const link = document.createElement('a');
+    link.download = 'openpose_model_export.png';
+    link.href = dataURL;
+    link.click();
+}
+
+function resetCanvas() {
+    loadModel('standard');
+}
+
+window.onload = initEditor;
+</script>
+</body>
+</html>

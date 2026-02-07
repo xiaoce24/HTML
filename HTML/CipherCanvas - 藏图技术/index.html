@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta name="baidu-site-verification" content="codeva-oLqgwJSYPK" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CipherCanvas PRO | 专业级视觉隐写协议</title>
+    <!-- 设置网页标签图标 (Favicon) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%234f46e5%22/><text y=%22.9em%22 x=%22.1em%22 font-size=%2270%22 fill=%22white%22>✨</text></svg>">
+
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f8fafc; --bg-grad: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+            --surface: #ffffff; --primary: #4f46e5; --secondary: #ec4899;
+            --text: #1e293b; --text-dim: #64748b; --border: #e2e8f0;
+            --header-bg: rgba(255, 255, 255, 0.8); --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05); --input-bg: #f1f5f9;
+            --danger: #f43f5e; --warning: #f59e0b;
+        }
+        .dark-mode {
+            --bg: #0f172a; --bg-grad: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --surface: #1e293b; --primary: #6366f1; --secondary: #f43f5e;
+            --text: #f8fafc; --text-dim: #94a3b8; --border: rgba(255, 255, 255, 0.1);
+            --header-bg: rgba(15, 23, 42, 0.8); --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3); --input-bg: #0d1117;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Noto Sans SC', 'Montserrat', sans-serif; background: var(--bg); background-image: var(--bg-grad); color: var(--text); line-height: 1.6; min-height: 100vh; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); overflow-x: hidden; }
+        
+        /* --- 动画系统 --- */
+        @keyframes modalShow {
+            0% { transform: scale(0.9) translateY(20px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        @keyframes panelIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- 弹窗样式 --- */
+        #notice-overlay, #msg-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(10px); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
+        .notice-card { background: var(--surface); width: 92%; max-width: 520px; border-radius: 30px; padding: 35px; border: 1px solid var(--border); box-shadow: 0 25px 60px -15px rgba(0,0,0,0.3); text-align: center; transform: scale(0.9); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .modal-active { opacity: 1 !important; pointer-events: auto !important; }
+        .modal-active .notice-card { transform: scale(1) !important; }
+
+        .notice-icon { width: 60px; height: 60px; background: var(--input-bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 26px; }
+        .notice-card h3 { font-size: 1.45em; margin-bottom: 15px; color: var(--text); font-weight: 800; }
+        .notice-content { text-align: left; background: var(--input-bg); padding: 22px; border-radius: 20px; margin-bottom: 25px; border: 1px solid var(--border); }
+        .notice-item { display: flex; gap: 12px; margin-bottom: 12px; font-size: 0.9em; color: var(--text-dim); line-height: 1.5; }
+        .notice-item b { color: var(--text); }
+        .warning-zone { margin-top: 10px; padding-top: 15px; border-top: 1px dashed var(--border); color: #ef4444; font-size: 0.85em; display: flex; gap: 10px; font-weight: 600; }
+        .btn-confirm { background: var(--primary); color: white; border: none; padding: 14px 40px; border-radius: 15px; font-weight: 700; cursor: pointer; transition: 0.3s; width: 100%; box-shadow: 0 5px 15px rgba(79, 70, 229, 0.3); }
+        .btn-confirm:hover { filter: brightness(1.1); transform: translateY(-2px); }
+
+        header { 
+            background: var(--header-bg); 
+            backdrop-filter: blur(12px); 
+            padding: 12px 40px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 1px solid var(--border); 
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+        }
+        .logo-area { display: flex; align-items: center; gap: 14px; cursor: pointer; text-decoration: none; }
+        .logo-box { width: 38px; height: 38px; background: linear-gradient(45deg, var(--primary), var(--secondary)); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4); transform: rotate(-5deg); transition: 0.3s; }
+        .logo-box::after { content: '✨'; font-size: 20px; }
+        .logo-title { display: flex; flex-direction: column; }
+        .logo-title .cn { font-size: 1.1em; font-weight: 800; color: var(--text); line-height: 1.2; letter-spacing: 1px; }
+        .logo-title .en { font-size: 0.65em; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-top: 2px; }
+
+        .nav-links { 
+            display: flex; 
+            gap: 4px; 
+            align-items: center; 
+            background: var(--input-bg); 
+            padding: 5px; 
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            margin-left: auto;
+        }
+        .nav-btn { 
+            background: transparent; 
+            border: none; 
+            color: var(--text-dim); 
+            padding: 8px 18px; 
+            font-size: 0.9em; 
+            cursor: pointer; 
+            border-radius: 12px; 
+            transition: 0.3s; 
+            font-weight: 600; 
+            white-space: nowrap;
+        }
+        .nav-btn:hover { color: var(--primary); background: rgba(79, 70, 229, 0.05); }
+        .nav-btn.active { 
+            background: var(--surface); 
+            color: var(--primary); 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+        }
+        .theme-toggle { 
+            width: 42px; 
+            height: 42px; 
+            border-radius: 14px; 
+            border: 1px solid var(--border); 
+            background: var(--surface); 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            transition: 0.3s; 
+            margin-left: 10px; 
+            color: var(--text);
+        }
+        .theme-toggle:hover { border-color: var(--primary); transform: rotate(15deg); }
+
+        main { padding: 40px 20px; max-width: 1100px; margin: 0 auto; width: 100%; }
+        .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 28px; padding: 40px; display: none; flex-direction: column; align-items: center; box-shadow: var(--card-shadow); transition: 0.3s; }
+        .panel.active { display: flex; animation: panelIn 0.5s ease; }
+        
+        .home-hero { text-align: center; max-width: 800px; }
+        .home-hero h2 { font-size: 2.2em; font-weight: 800; margin-bottom: 15px; background: linear-gradient(to right, var(--text), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .divider { width: 60px; height: 4px; background: var(--primary); margin: 20px auto; border-radius: 2px; }
+        .tech-specs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; width: 100%; margin: 30px 0; border-top: 1px solid var(--border); padding-top: 30px; }
+        .spec-item p { font-size: 1.1em; font-weight: 700; }
+
+        .workspace-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; width: 100%; margin-top: 20px; }
+        .ws-card { background: var(--input-bg); padding: 25px; border-radius: 20px; border: 1px solid var(--border); }
+        .ws-card h3 { font-size: 1em; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .dim-input-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .dim-input-group div { flex: 1; }
+        .dim-input-group label { display: block; font-size: 0.75em; color: var(--text-dim); margin-bottom: 5px; }
+        .dim-input-group input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 600; }
+        .preset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .btn-preset { padding: 8px; font-size: 0.8em; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; cursor: pointer; transition: 0.2s; color: var(--text); }
+        .btn-preset:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-preset.active { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        #size-preview-canvas { max-width: 100%; max-height: 50vh; border-radius: 10px; margin-top: 20px; background: #ddd; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); cursor: crosshair; touch-action: none; object-fit: contain; }
+        #res-img { max-width: 100%; max-height: 350px; border-radius: 12px; border: 1px solid var(--border); object-fit: contain; }
+
+        .manual-toggle-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; padding: 10px; background: var(--surface); border-radius: 12px; border: 1px solid var(--border); }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider-tog { position: absolute; cursor: pointer; inset: 0; background-color: #cbd5e1; transition: .4s; border-radius: 24px; }
+        .slider-tog:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider-tog { background-color: var(--primary); }
+        input:checked + .slider-tog:before { transform: translateX(20px); }
+
+        .upload-row { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; width: 100%; }
+        .upload-card { width: 300px; height: 200px; background: var(--input-bg); border: 2px dashed var(--border); border-radius: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; transition: 0.3s; overflow: hidden; }
+        .upload-card:hover { border-color: var(--primary); transform: translateY(-5px); }
+        .upload-card input { display: none; }
+        .upload-card img { width: 100%; height: 100%; object-fit: contain; position: absolute; z-index: 10; border-radius: 22px; display: none; background: var(--input-bg); }
+        
+        .btn-call { background: var(--primary); color: white; border: none; padding: 14px 45px; border-radius: 16px; font-weight: 700; cursor: pointer; transition: 0.3s; margin-top: 30px; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4); }
+        .result-container { width: 100%; display: none; flex-direction: column; align-items: center; margin-top: 40px; }
+        .view-frame { position: relative; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        #decode-canvas { display: block; max-width: 100%; max-height: 60vh; cursor: crosshair; touch-action: none; object-fit: contain; }
+
+        .control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; width: 100%; margin-top: 30px; background: var(--input-bg); padding: 30px; border-radius: 20px; border: 1px solid var(--border); }
+        .slider-group label { font-size: 0.8em; font-weight: 700; color: var(--text-dim); text-transform: uppercase; }
+        .slider-group input { appearance: none; height: 6px; background: var(--border); border-radius: 3px; width: 100%; margin-top: 10px; }
+        .slider-group input::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; background: var(--primary); border: 3px solid #fff; border-radius: 50%; cursor: pointer; }
+
+        .float-btn { position: fixed; bottom: 30px; right: 30px; z-index: 1000; display: flex; align-items: center; flex-direction: row-reverse; gap: 12px; pointer-events: auto; cursor: default; }
+        .ball { width: 58px; height: 58px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4); transition: 0.4s; }
+        .ball svg { width: 24px; height: 24px; fill: white; }
+        .ball-text { background: var(--surface); color: var(--text); padding: 8px 16px; border-radius: 12px; font-size: 13px; font-weight: 700; box-shadow: var(--card-shadow); opacity: 0; transform: translateX(10px); transition: 0.3s; white-space: nowrap; }
+        .float-btn:hover .ball-text { opacity: 1; transform: translateX(0); }
+        .float-btn:hover .ball { transform: rotate(15deg) scale(1.1); }
+
+        footer { padding: 40px; text-align: center; }
+        .footer-badge { display: inline-flex; align-items: center; gap: 12px; padding: 8px 24px; border-radius: 50px; background: var(--surface); border: 1px solid var(--border); font-size: 0.85em; color: var(--text-dim); }
+        .footer-badge b { color: var(--primary); }
+
+        @media (max-width: 768px) {
+            header { padding: 15px 15px; flex-wrap: wrap; justify-content: space-between; }
+            .logo-area { order: 1; gap: 8px; }
+            .logo-title .en { display: none; }
+            .logo-title .cn { font-size: 1em; }
+            .theme-toggle { order: 2; width: 38px; height: 38px; margin-left: 0; }
+            .nav-links { order: 3; width: 100%; margin-top: 15px; overflow-x: auto; justify-content: flex-start; padding: 4px; border-radius: 12px; -webkit-overflow-scrolling: touch; margin-left: 0; }
+            .nav-links::-webkit-scrollbar { display: none; }
+            .nav-btn { padding: 6px 14px; font-size: 0.85em; border-radius: 10px; flex: 1 0 auto; text-align: center; }
+            main { padding: 20px 12px; }
+            .panel { padding: 25px 18px; border-radius: 24px; }
+            .home-hero h2 { font-size: 1.5em; }
+            .workspace-grid { grid-template-columns: 1fr; gap: 20px; }
+            .upload-card { width: 100%; height: 160px; }
+            .notice-card { padding: 25px 20px; }
+            .notice-card h3 { font-size: 1.2em; }
+            .notice-content { padding: 15px; }
+            .float-btn { bottom: 20px; right: 20px; }
+            .ball { width: 50px; height: 50px; }
+            .ball-text { display: none; } 
+            .btn-call { width: 100%; padding: 12px 20px; font-size: 0.95em; }
+            .control-grid { padding: 20px 15px; }
+        }
+    </style>
+</head>
+<body onload="initApp()">
+
+<div id="msg-overlay" style="display: none;">
+    <div class="notice-card" style="max-width: 420px;">
+        <div class="notice-icon" id="msg-icon">⚠️</div>
+        <h3 id="msg-title">系统提示</h3>
+        <div class="notice-content" id="msg-text" style="text-align: center; font-size: 0.95em; color: var(--text);"></div>
+        <button class="btn-confirm" onclick="closeMsg()">好的，明白了</button>
+    </div>
+</div>
+
+<div id="notice-overlay" style="display: flex;">
+    <div class="notice-card">
+        <div class="notice-icon">📋</div>
+        <h3>公  告  栏</h3>
+        <div class="notice-content">
+            <div class="notice-item" style="display:block; text-align:center; margin-bottom:20px; color:var(--primary); font-weight:700; font-size: 1.1em;">
+                ✨ 基于 Neutral-DDM v4 像素级对冲隐写技术
+            </div>
+            <div class="notice-item"><span>🚀</span><p><b>安全加固：</b>支持 24-bit 彩色真值隐写。请确保图片未经压缩以保留差分特征。</p></div>
+            <div class="notice-item"><span>📏</span><p><b>精准对齐：</b>所有操作要求源图与载体图分辨率<b>绝对一致</b>。请优先使用预处理器进行处理。</p></div>
+            <div class="notice-item"><span>⚙️</span><p><b>交互优化：</b>预览视图已适配屏幕比例，裁剪框现支持边缘自动防溢出锁定。</p></div>
+            <div class="warning-zone">
+                <span>⚠️</span>
+                <p><b>警示：</b>若出现图像与效果图不符或保存图片失效等，推荐使用 Chrome 或 Edge 浏览器。生成后需原图进行发送，社交软件通常会自动压缩图片导致失效</p>
+            </div>
+        </div>
+        <button class="btn-confirm" onclick="closeNotice()">我已阅读并知晓</button>
+    </div>
+</div>
+
+<header>
+    <a href="#" class="logo-area" onclick="switchPanel('home')">
+        <div class="logo-box"></div>
+        <div class="logo-title">
+            <span class="cn">密码画布</span>
+            <span class="en">CipherCanvas Pro</span>
+        </div>
+    </a>
+    <nav class="nav-links">
+        <button class="nav-btn active" id="nav-home" onclick="switchPanel('home')">首页</button>
+        <button class="nav-btn" id="nav-size" onclick="switchPanel('size')">图像尺寸</button>
+        <button class="nav-btn" id="nav-encode" onclick="switchPanel('encode')">隐藏编码</button>
+        <button class="nav-btn" id="nav-decode" onclick="switchPanel('decode')">还原解码</button>
+    </nav>
+    <button class="theme-toggle" onclick="toggleTheme()"><svg id="theme-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></svg></button>
+</header>
+
+<main>
+    <section id="panel-home" class="panel active">
+        <div class="home-hero">
+            <h2>无痕视觉嵌入与光谱重建协议</h2>
+            <div class="divider"></div>
+            <p>基于 Neutral-DDM 差分调制技术，实现在复杂影像介质中建立隐形数据通道。</p>
+        </div>
+        <div style="max-width: 650px; text-align: center; color: var(--text-dim); margin-bottom: 20px; font-size: 0.95em;">
+            系统通过对底层像素簇的微观对冲计算，在保障载体影像特征绝对守恒的前提下实现 24-bit 彩色隐藏。
+        </div>
+        <div class="tech-specs">
+            <div class="spec-item"><h4>加密精度</h4><p>Vector-Level</p></div>
+            <div class="spec-item"><h4>色深支持</h4><p>24-bit TrueColor</p></div>
+            <div class="spec-item"><h4>核心协议</h4><p>Neutral-DDM v4</p></div>
+        </div>
+        <button class="btn-call" onclick="switchPanel('encode')">开始使用！</button>
+    </section>
+
+    <section id="panel-size" class="panel">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h2>图像尺寸处理</h2>
+            <p>在此调整您的图片尺寸，确保“隐藏图”与“载体图”分辨率一致</p>
+        </div>
+        
+        <div class="upload-row">
+            <label class="upload-card">
+                <input type="file" id="size-upload-input" onchange="pImgSize(this)">
+                <div class="u-icon">📁</div>
+                <div class="u-label">导入待处理图片</div>
+                <img id="size-source-img">
+            </label>
+        </div>
+
+        <div class="workspace-grid">
+            <div class="ws-card">
+                <h3><span>1️⃣</span> 自定义分辨率</h3>
+                <div class="dim-input-group">
+                    <div><label>宽度 (Width)</label><input type="number" id="inp-w" value="832"></div>
+                    <div><label>高度 (Height)</label><input type="number" id="inp-h" value="1216"></div>
+                </div>
+                <button class="btn-confirm" style="padding:10px;" onclick="applyResize()">执行重采样</button>
+            </div>
+
+            <div class="ws-card">
+                <h3><span>2️⃣</span> 预设比例裁剪</h3>
+                <div class="manual-toggle-wrap">
+                    <label class="switch"><input type="checkbox" id="manual-crop-switch" onchange="toggleManualMode()"><span class="slider-tog"></span></label>
+                    <span style="font-size: 0.85em; font-weight: 700; color: var(--text);">手动裁剪开关</span>
+                </div>
+                <div class="preset-grid">
+                    <button class="btn-preset" onclick="applyPreset(1/1, this)">1:1</button>
+                    <button class="btn-preset" onclick="applyPreset(4/3, this)">4:3</button>
+                    <button class="btn-preset" onclick="applyPreset(16/9, this)">16:9</button>
+                    <button class="btn-preset" onclick="applyPreset(9/16, this)">9:16</button>
+                    <button class="btn-preset" onclick="applyPreset(21/9, this)">21:9</button>
+                    <button class="btn-preset" onclick="applyPreset(3/2, this)">3:2</button>
+                </div>
+            </div>
+        </div>
+
+        <canvas id="size-preview-canvas"></canvas>
+        <div id="size-dl-area" style="display:none; margin-top:20px; width:100%; text-align:center;">
+            <button class="btn-call" style="background:#10b981;" onclick="exportProcessedImg()">📥 保存图片</button>
+        </div>
+    </section>
+
+    <section id="panel-encode" class="panel">
+        <div style="text-align: center; margin-bottom: 40px;"><h2>制作加密藏图</h2><p>请上传<b>分辨率完全一致</b>的秘密源内容与载体背景</p></div>
+        <div class="upload-row">
+            <label class="upload-card"><input type="file" onchange="pImg(this,'s-p')"><div class="u-icon">🎨</div><div class="u-label">隐藏图源</div><img id="s-p"></label>
+            <label class="upload-card"><input type="file" onchange="pImg(this,'c-p')"><div class="u-icon">🖼️</div><div class="u-label">载体图</div><img id="c-p"></label>
+        </div>
+        <button class="btn-call" onclick="startEnc()">⚡ 开始生成</button>
+        <div id="enc-res" class="result-container">
+            <p style="color:#10b981; font-weight:700; margin-bottom:20px;">✓ 嵌入成功</p>
+            <img id="res-img">
+            <a id="dl-enc" class="btn-call" style="text-decoration:none; background: #10b981;" download="secret_cipher.png">📥 保存图片 (PNG)</a>
+        </div>
+    </section>
+
+    <section id="panel-decode" class="panel">
+        <div style="text-align: center; margin-bottom: 40px;"><h2>影像光谱还原</h2><p>导入含有加密信息的图像，执行算法解析与后期校准</p></div>
+        <div class="upload-row"><label class="upload-card"><input type="file" onchange="pImg(this,'d-p')"><div class="u-icon">🔎</div><div class="u-label">导入待解密图像</div><img id="d-p"></label></div>
+        <button class="btn-call" onclick="startDec()">🔓 启动重建序列</button>
+        <div id="dec-res" class="result-container">
+            <div class="view-frame"><canvas id="decode-canvas"></canvas></div>
+            <div class="control-grid">
+                <div class="slider-group"><label>曝光补偿</label><input type="range" id="f-exp" min="-60" max="60" value="0" oninput="fx()"></div>
+                <div class="slider-group"><label>对比强度</label><input type="range" id="f-con" min="0.8" max="2.2" step="0.05" value="1.85" oninput="fx()"></div>
+                <div class="slider-group"><label>色彩浓度</label><input type="range" id="f-sat" min="0" max="200" value="110" oninput="fx()"></div>
+                <div class="slider-group"><label>复古色温</label><input type="range" id="f-sep" min="0" max="100" value="0" oninput="fx()"></div>
+                <div class="slider-group"><label>色相旋转</label><input type="range" id="f-hue" min="0" max="360" value="0" oninput="fx()"></div>
+                <div class="slider-group"><label>高斯模糊</label><input type="range" id="f-blr" min="0" max="10" step="0.1" value="0" oninput="fx()"></div>
+                <button class="btn-call" style="background: linear-gradient(to right, #10b981, #059669); grid-column: 1/-1; margin-top:15px; width:100%;" onclick="save()">💾 导出最终还原影像</button>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div class="float-btn">
+    <div class="ball"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg></div>
+    <div class="ball-text">联系我！QQ：965629725</div>
+</div>
+
+<footer><div class="footer-badge">Neutral-DDM 载体中和差分编码 <b>|</b> <b>小策</b> DESIGN</div></footer>
+
+<script>
+    let rawCvs = null, crop = { x: 0, y: 0, w: 200, h: 200 }, dMode = null;
+    let sizeImgObj = null, dashOff = 0, sizeCrop = { x: 50, y: 50, w: 200, h: 200 }, isManual = false, sizeDMode = null;
+    const BLK = 2, S_VAL = 14, $ = id => document.getElementById(id);
+
+    function initApp() { 
+        setTimeout(() => $('notice-overlay').classList.add('modal-active'), 100); 
+        animateDash(); 
+        
+        window.addEventListener('mousemove', (e) => {
+            if (sizeDMode) handleSMove(e);
+            if (dMode) fx();
+        });
+        window.addEventListener('mouseup', () => {
+            sizeDMode = null;
+            dMode = null;
+        });
+        window.addEventListener('touchmove', (e) => {
+            if (sizeDMode || dMode) {
+                if (sizeDMode) handleSMove(e);
+                if (dMode) fx();
+                if (e.cancelable) e.preventDefault();
+            }
+        }, { passive: false });
+        window.addEventListener('touchend', () => {
+            sizeDMode = null;
+            dMode = null;
+        });
+    }
+
+    function showMsg(title, text, icon = '⚠️') {
+        $('msg-title').innerText = title; $('msg-text').innerText = text; $('msg-icon').innerText = icon;
+        const msg = $('msg-overlay'); msg.style.display = 'flex'; setTimeout(() => msg.classList.add('modal-active'), 10);
+    }
+    function closeMsg() { const msg = $('msg-overlay'); msg.classList.remove('modal-active'); setTimeout(() => msg.style.display = 'none', 350); }
+    function closeNotice() { const overlay = $('notice-overlay'); overlay.classList.remove('modal-active'); setTimeout(() => overlay.style.display = 'none', 400); }
+
+    function pImgSize(i) {
+        const file = i.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            showMsg('格式拦截', '此系统仅支持处理图片格式。', '❌');
+            i.value = ''; return;
+        }
+        const r = new FileReader();
+        r.onload = async e => {
+            sizeImgObj = await loadA(e.target.result);
+            const previewImg = $('size-source-img');
+            previewImg.src = e.target.result; previewImg.style.display = 'block';
+            sizeCrop = { x: sizeImgObj.width*0.1, y: sizeImgObj.height*0.1, w: sizeImgObj.width*0.8, h: sizeImgObj.height*0.8 };
+            renderSizePreview();
+            $('size-dl-area').style.display = 'block';
+        };
+        r.readAsDataURL(file);
+    }
+
+    function toggleManualMode() { isManual = $('manual-crop-switch').checked; renderSizePreview(); }
+
+    function renderSizePreview() {
+        if (!sizeImgObj) return;
+        const cvs = $('size-preview-canvas'), ctx = cvs.getContext('2d');
+        cvs.width = sizeImgObj.width; cvs.height = sizeImgObj.height;
+        cvs.style.display = 'block';
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.drawImage(sizeImgObj, 0, 0);
+
+        if (isManual) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.beginPath(); ctx.rect(0, 0, cvs.width, cvs.height); ctx.rect(sizeCrop.x, sizeCrop.y, sizeCrop.w, sizeCrop.h); ctx.fill('evenodd');
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([8, 4]); ctx.lineDashOffset = -dashOff;
+            ctx.strokeRect(sizeCrop.x, sizeCrop.y, sizeCrop.w, sizeCrop.h);
+            ctx.setLineDash([]);
+            ctx.fillStyle = varColor('--primary');
+            const dots = [[sizeCrop.x, sizeCrop.y], [sizeCrop.x+sizeCrop.w, sizeCrop.y], [sizeCrop.x, sizeCrop.y+sizeCrop.h], [sizeCrop.x+sizeCrop.w, sizeCrop.y+sizeCrop.h]];
+            dots.forEach(d => { ctx.beginPath(); ctx.arc(d[0], d[1], 6, 0, Math.PI*2); ctx.fill(); });
+        }
+    }
+
+    function animateDash() { dashOff++; if (isManual) renderSizePreview(); requestAnimationFrame(animateDash); }
+    function varColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+    const sCvs = $('size-preview-canvas');
+    const getEvPos = (e) => {
+        const r = sCvs.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: (clientX - r.left) * (sCvs.width / r.width),
+            y: (clientY - r.top) * (sCvs.height / r.height)
+        };
+    };
+
+    const handleSStart = (e) => {
+        if (!isManual || !sizeImgObj) return;
+        const pos = getEvPos(e);
+        const t = 40;
+        if (Math.abs(pos.x - sizeCrop.x) < t && Math.abs(pos.y - sizeCrop.y) < t) sizeDMode = 'nw';
+        else if (Math.abs(pos.x - (sizeCrop.x + sizeCrop.w)) < t && Math.abs(pos.y - sizeCrop.y) < t) sizeDMode = 'ne';
+        else if (Math.abs(pos.x - sizeCrop.x) < t && Math.abs(pos.y - (sizeCrop.y + sizeCrop.h)) < t) sizeDMode = 'sw';
+        else if (Math.abs(pos.x - (sizeCrop.x + sizeCrop.w)) < t && Math.abs(pos.y - (sizeCrop.y + sizeCrop.h)) < t) sizeDMode = 'se';
+        else if (pos.x > sizeCrop.x && pos.x < sizeCrop.x + sizeCrop.w && pos.y > sizeCrop.y && pos.y < sizeCrop.y + sizeCrop.h) sizeDMode = 'move';
+        if (sizeDMode && e.cancelable) e.preventDefault();
+    };
+
+    const handleSMove = (e) => {
+        if (!sizeDMode) return;
+        const pos = getEvPos(e);
+        const minSize = 40;
+        if (sizeDMode === 'move') {
+            sizeCrop.x = Math.max(0, Math.min(sCvs.width - sizeCrop.w, pos.x - sizeCrop.w/2));
+            sizeCrop.y = Math.max(0, Math.min(sCvs.height - sizeCrop.h, pos.y - sizeCrop.h/2));
+        } else if (sizeDMode === 'nw') {
+            let nx = Math.max(0, Math.min(sizeCrop.x + sizeCrop.w - minSize, pos.x));
+            let ny = Math.max(0, Math.min(sizeCrop.y + sizeCrop.h - minSize, pos.y));
+            sizeCrop.w += sizeCrop.x - nx; sizeCrop.h += sizeCrop.y - ny; sizeCrop.x = nx; sizeCrop.y = ny;
+        } else if (sizeDMode === 'ne') {
+            sizeCrop.w = Math.max(minSize, Math.min(sCvs.width - sizeCrop.x, pos.x - sizeCrop.x));
+            let ny = Math.max(0, Math.min(sizeCrop.y + sizeCrop.h - minSize, pos.y));
+            sizeCrop.h += sizeCrop.y - ny; sizeCrop.y = ny;
+        } else if (sizeDMode === 'sw') {
+            let nx = Math.max(0, Math.min(sizeCrop.x + sizeCrop.w - minSize, pos.x));
+            sizeCrop.w += sizeCrop.x - nx; sizeCrop.x = nx;
+            sizeCrop.h = Math.max(minSize, Math.min(sCvs.height - sizeCrop.y, pos.y - sizeCrop.y));
+        } else if (sizeDMode === 'se') {
+            sizeCrop.w = Math.max(minSize, Math.min(sCvs.width - sizeCrop.x, pos.x - sizeCrop.x));
+            sizeCrop.h = Math.max(minSize, Math.min(sCvs.height - sizeCrop.y, pos.y - sizeCrop.y));
+        }
+        renderSizePreview();
+    };
+
+    sCvs.onmousedown = handleSStart;
+    sCvs.addEventListener('touchstart', handleSStart, {passive:false});
+
+    async function applyResize() {
+        if(!sizeImgObj) return;
+        isManual = false; $('manual-crop-switch').checked = false;
+        const w = parseInt($('inp-w').value), h = parseInt($('inp-h').value);
+        sCvs.width = w; sCvs.height = h;
+        sCvs.getContext('2d').drawImage(sizeImgObj, 0, 0, w, h);
+    }
+    async function applyPreset(ratio, btn) {
+        if(!sizeImgObj) return;
+        isManual = false; $('manual-crop-switch').checked = false;
+        document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active')); btn.classList.add('active');
+        let tw, th; if (sizeImgObj.width / sizeImgObj.height > ratio) { th = sizeImgObj.height; tw = sizeImgObj.height * ratio; }
+        else { tw = sizeImgObj.width; th = sizeImgObj.width / ratio; }
+        sCvs.width = tw; sCvs.height = th;
+        sCvs.getContext('2d').drawImage(sizeImgObj, (sizeImgObj.width-tw)/2, (sizeImgObj.height-th)/2, tw, th, 0, 0, tw, th);
+    }
+    function exportProcessedImg() {
+        const outCvs = document.createElement('canvas'), outCtx = outCvs.getContext('2d');
+        if (isManual) { outCvs.width = sizeCrop.w; outCvs.height = sizeCrop.h; outCtx.drawImage(sizeImgObj, sizeCrop.x, sizeCrop.y, sizeCrop.w, sizeCrop.h, 0, 0, sizeCrop.w, sizeCrop.h); }
+        else { outCvs.width = sCvs.width; outCvs.height = sCvs.height; outCtx.drawImage(sCvs, 0, 0); }
+        const l = document.createElement('a'); l.download = 'processed_image.png'; l.href = outCvs.toDataURL(); l.click();
+    }
+
+    function pImg(i, id) {
+        const f = i.files[0]; if (!f || !f.type.startsWith('image/')) return;
+        const r = new FileReader(); r.onload = e => { $(id).src = e.target.result; $(id).style.display = 'block'; }; r.readAsDataURL(f);
+    }
+    const loadA = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+    
+    // 修改：优化分辨率不匹配时的弹窗逻辑
+    async function startEnc() {
+        if(!$('s-p').src || !$('c-p').src) return showMsg('资源未选', '载入隐藏图与载体图。');
+        const si = await loadA($('s-p').src), ci = await loadA($('c-p').src);
+        
+        // 分辨率匹配校验逻辑修改
+        if (si.width !== ci.width || si.height !== ci.height) {
+            return showMsg(
+                '分辨率不匹配', 
+                `隐藏图：${si.width} x ${si.height}ㅤㅤ载体图：${ci.width} x ${ci.height}\n\n请先使用“图像尺寸”工具将两者处理为相同分辨率。`
+            );
+        }
+        
+        const cvs = document.createElement('canvas'), ctx = cvs.getContext('2d');
+        cvs.width = ci.width; cvs.height = ci.height; ctx.drawImage(ci, 0, 0);
+        const idat = ctx.getImageData(0,0,cvs.width,cvs.height), p = idat.data;
+        const sw = Math.floor(cvs.width/BLK), sh = Math.floor(cvs.height/BLK);
+        const scvs = document.createElement('canvas'); scvs.width = sw; scvs.height = sh;
+        scvs.getContext('2d').drawImage(si, 0, 0, sw, sh);
+        const sp = scvs.getContext('2d').getImageData(0,0,sw,sh).data;
+        for(let y=0; y<sh; y++) {
+            for(let x=0; x<sw; x++) {
+                const sIdx = (y*sw+x)*4, cx=x*BLK, cy=y*BLK, i00=(cy*cvs.width+cx)*4, i01=(cy*cvs.width+cx+1)*4, i10=((cy+1)*cvs.width+cx)*4, i11=((cy+1)*cvs.width+cx+1)*4;
+                for(let k=0; k<3; k++) {
+                    let avg = (p[i00+k]+p[i01+k]+p[i10+k]+p[i11+k])/4; if(avg<16) avg=16; if(avg>239) avg=239;
+                    const sig = Math.round((sp[sIdx+k]-128)/128*S_VAL); p[i00+k]=p[i11+k]=avg+sig; p[i01+k]=p[i10+k]=avg-sig;
+                }
+            }
+        }
+        ctx.putImageData(idat,0,0); $('res-img').src = $('dl-enc').href = cvs.toDataURL('image/png'); $('enc-res').style.display = 'flex';
+    }
+
+    function switchPanel(id) {
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        setTimeout(() => { document.querySelectorAll('.panel').forEach(p => p.style.display = p.id === 'panel-'+id ? 'flex' : 'none'); $('panel-'+id).classList.add('active'); }, 100);
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.id === 'nav-'+id));
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        const isD = document.body.classList.contains('dark-mode');
+        $('theme-icon').innerHTML = isD ?
+            '<path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>' :
+            '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+    }
+    toggleTheme(); toggleTheme();
+
+    async function startDec() {
+        const src = $('d-p').src; if(!src) return;
+        const di = await loadA(src);
+        const cvs = document.createElement('canvas'), ctx = cvs.getContext('2d'); cvs.width = di.width; cvs.height = di.height; ctx.drawImage(di,0,0);
+        const p = ctx.getImageData(0,0,cvs.width,cvs.height).data;
+        const sw = Math.floor(cvs.width/BLK), sh = Math.floor(cvs.height/BLK);
+        rawCvs = document.createElement('canvas'); rawCvs.width = sw; rawCvs.height = sh;
+        const octx = rawCvs.getContext('2d'), odat = octx.createImageData(sw,sh), op = odat.data;
+        for(let y=0; y<sh; y++) {
+            for(let x=0; x<sw; x++) {
+                const cx=x*BLK, cy=y*BLK, i00=(cy*cvs.width+cx)*4, i01=(cy*cvs.width+cx+1)*4, i10=((cy+1)*cvs.width+cx+1)*4, i11=((cy+1)*cvs.width+cx+1)*4, oi=(y*sw+x)*4;
+                for(let k=0; k<3; k++) op[oi+k] = Math.max(0, Math.min(255, Math.round(((p[i00+k]+p[i11+k]-p[i01+k]-p[i10+k])/(S_VAL*4))*128+128)));
+                op[oi+3]=255;
+            }
+        }
+        octx.putImageData(odat,0,0); $('dec-res').style.display = 'flex'; fx(); initCrop();
+    }
+    
+    function fx() {
+        if(!rawCvs) return;
+        const dcvs = $('decode-canvas'), ctx = dcvs.getContext('2d'); dcvs.width = rawCvs.width; dcvs.height = rawCvs.height;
+        ctx.filter = `brightness(${100+parseInt($('f-exp').value)}%) contrast(${$('f-con').value}) saturate(${$('f-sat').value}%) sepia(${$('f-sep').value}%) hue-rotate(${$('f-hue').value}deg) blur(${$('f-blr').value}px)`;
+        ctx.drawImage(rawCvs, 0, 0);
+    }
+    
+    function initCrop() {
+        const cvs = $('decode-canvas');
+        cvs.onmousedown = () => { dMode = 'move'; };
+        cvs.addEventListener('touchstart', (e) => { dMode = 'move'; if(e.cancelable) e.preventDefault(); }, {passive:false});
+    }
+
+    function save() { 
+        if(!rawCvs) return;
+        const fcvs = document.createElement('canvas'); 
+        fcvs.width = rawCvs.width; fcvs.height = rawCvs.height; 
+        const fctx = fcvs.getContext('2d');
+        fctx.filter = `brightness(${100+parseInt($('f-exp').value)}%) contrast(${$('f-con').value}) saturate(${$('f-sat').value}%) sepia(${$('f-sep').value}%) hue-rotate(${$('f-hue').value}deg) blur(${$('f-blr').value}px)`;
+        fctx.drawImage(rawCvs, 0, 0); 
+        const l = document.createElement('a'); l.download = 'recovered_final.png'; l.href = fcvs.toDataURL('image/png'); l.click(); 
+    }
+</script>
+</body>
+</html>
